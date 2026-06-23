@@ -88,7 +88,7 @@ dependencies {
     testImplementation 'org.robolectric:robolectric:4.8.2'
     testImplementation 'commons-io:commons-io:2.6'
     testImplementation 'ch.qos.logback:logback-classic:1.2.11'
-    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.2'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0'
     testImplementation 'app.cash.turbine:turbine:1.0.0'
 
     androidTestImplementation project(":libs:sharedTest")
