@@ -67,7 +67,7 @@ kotlin {
                 implementation kotlin('test')
                 implementation 'org.json:json:20220320'
                 implementation 'junit:junit:4.13.2'
-                implementation 'ch.qos.logback:logback-classic:1.2.11'
+                implementation 'ch.qos.logback:logback-classic:1.5.35'
             }
         }
         androidInstrumentedTest {
