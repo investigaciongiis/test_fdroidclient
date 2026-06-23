@@ -9,7 +9,7 @@ import android.util.Log;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.fdroid.fdroid.FDroidApp;
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 
 import java.util.Arrays;
@@ -92,7 +92,7 @@ public class LocalRepoService extends IntentService {
 
         @Override
         public void run() {
-            Process.setThreadPriority(Process.THREAD_PRIORITY_LOWEST);
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_LOWEST);
             runProcess(LocalRepoService.this, currentlyProcessedApps);
         }
     }

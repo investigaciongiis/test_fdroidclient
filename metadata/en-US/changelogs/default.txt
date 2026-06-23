@@ -1,8 +1,7 @@
-* UI rewritten from scratch with Kotlin compose
-* improved search, also searching in descriptions and translations
-* easier to discover new apps, also highlighting the most downloaded ones
-* installation approval *before* downloading
-* multiple updates/downloads at the same time
-* notifying user of issues with apps (e.g. signing key changed)
-* optional Material You color theme
-* improved filtering of lists
+* Fixed using repos and mirrors from External Storage on recent Android releases
+* Improved WiFi management in Nearby
+* The navigation bar now remembers its position even when F-Droid restarts
+* New language: Swahili
+* Fix downloading images for repos still using index-v1
+* Fix crashes related to swap, managing repos and more
+* The Downgrade button was removed, Android no longer allows that

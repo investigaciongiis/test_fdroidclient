@@ -27,7 +27,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 import org.fdroid.fdroid.nearby.SDCardScannerService;
 import org.fdroid.fdroid.nearby.SwapService;
@@ -57,16 +57,12 @@ import java.util.concurrent.Executor;
  * <p>
  *
  * @see TreeUriScannerIntentService
- * @see SDCardScannerService
+ * @see org.fdroid.fdroid.nearby.SDCardScannerService
  * <p>
  * TODO use {@link StorageManager#registerStorageVolumeCallback(Executor, StorageManager.StorageVolumeCallback)}
  */
 public class NearbyViewBinder {
     public static final String TAG = "NearbyViewBinder";
-
-    static final int REQUEST_LOCATION_PERMISSIONS = 0xEF0F;
-    static final int REQUEST_STORAGE_PERMISSIONS = 0xB004;
-    static final int REQUEST_STORAGE_ACCESS = 0x40E5;
 
     private static File externalStorage = null;
     private static View swapView;
@@ -81,9 +77,9 @@ public class NearbyViewBinder {
         Button startButton = swapView.findViewById(R.id.find_people_button);
         startButton.setOnClickListener(v -> {
             final String coarseLocation = Manifest.permission.ACCESS_COARSE_LOCATION;
-            if (Build.VERSION.SDK_INT <= 30 && PackageManager.PERMISSION_GRANTED != ContextCompat.checkSelfPermission(activity, coarseLocation)) {
+            if (PackageManager.PERMISSION_GRANTED != ContextCompat.checkSelfPermission(activity, coarseLocation)) {
                 ActivityCompat.requestPermissions(activity, new String[]{coarseLocation},
-                        REQUEST_LOCATION_PERMISSIONS);
+                        MainActivity.REQUEST_LOCATION_PERMISSIONS);
             } else {
                 ContextCompat.startForegroundService(activity, new Intent(activity, SwapService.class));
             }
@@ -149,7 +145,7 @@ public class NearbyViewBinder {
                     button.setText(R.string.nearby_splace__external_storage_permission_button);
                     button.setOnClickListener(v -> {
                         ActivityCompat.requestPermissions(activity, new String[]{readExternalStorage},
-                                REQUEST_STORAGE_PERMISSIONS);
+                                MainActivity.REQUEST_STORAGE_PERMISSIONS);
                     });
                 } else {
                     explainer.setText(R.string.nearby_splash__read_external_storage);
@@ -237,7 +233,7 @@ public class NearbyViewBinder {
                     }
 
                     if (activity != null) {
-                        activity.startActivityForResult(intent, REQUEST_STORAGE_ACCESS);
+                        activity.startActivityForResult(intent, MainActivity.REQUEST_STORAGE_ACCESS);
                     } else {
                         // scan in the background without requesting permissions
                         Toast.makeText(context.getApplicationContext(),

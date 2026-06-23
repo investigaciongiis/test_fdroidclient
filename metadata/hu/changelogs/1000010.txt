@@ -1,10 +1,10 @@
 Itt az F-Droid 1.0!
 
-* Számos nagy változást tartalmaz:
+Ez a kiadás számos nagy változást tartalmaz:
 
-* Átdolgozott munkafolyamat az alk.frissítésnél
+* Teljesen átdolgozott munkafolyamat az alkalmazásfrissítésnél
 
-* Teljesen lefordított alk.összegzések és leírások
+* Teljesen lefordított alkalmazásösszegzések és leírások
 
 * „Újdonságok” szakasz a jelenlegi kiadás változásaival
 
@@ -12,10 +12,8 @@ Itt az F-Droid 1.0!
 
 * Média, OTA, ZIP, stb. fájlok támogatása
 
-* T.fejlesztett követés elleni védelem (HTTP ETag, TLS, stb.)
+* Továbbfejlesztett követés elleni védelem (HTTP ETag, TLS, stb.)
 
-* Háttérben futó frissítések a privilegizált kiterjesztéssel
+* Teljesen háttérben futó frissítések a Privilegizált kiterjesztéssel
 
-* A fejlesztőknek szánt adományok kiemelése
-
-* Sokkal gyorsabb indexfrissítések
+*Sokkal gyorsabb indexfrissítések

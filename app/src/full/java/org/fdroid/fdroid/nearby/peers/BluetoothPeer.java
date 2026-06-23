@@ -5,11 +5,9 @@ import android.bluetooth.BluetoothDevice;
 import android.os.Parcel;
 import android.text.TextUtils;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresPermission;
 
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 
 public class BluetoothPeer implements Peer {
 
@@ -22,7 +20,6 @@ public class BluetoothPeer implements Peer {
      * host a swap repo.
      */
     @Nullable
-    @RequiresPermission("android.permission.BLUETOOTH_CONNECT")
     public static BluetoothPeer getInstance(@Nullable BluetoothDevice device) {
         if (device != null && device.getName() != null &&
                 (device.getBluetoothClass().getDeviceClass() == Device.COMPUTER_HANDHELD_PC_PDA
@@ -37,22 +34,14 @@ public class BluetoothPeer implements Peer {
         this.device = device;
     }
 
-    @NonNull
     @Override
-    @RequiresPermission("android.permission.BLUETOOTH_CONNECT")
     public String toString() {
-        String name = getName();
-        if (name == null) return "null";
-        return name;
+        return getName();
     }
 
     @Override
-    @Nullable
-    @RequiresPermission("android.permission.BLUETOOTH_CONNECT")
     public String getName() {
-        String name = device.getName();
-        if (name == null) return null;
-        return name.replaceAll("^" + BLUETOOTH_NAME_TAG, "");
+        return device.getName().replaceAll("^" + BLUETOOTH_NAME_TAG, "");
     }
 
     @Override

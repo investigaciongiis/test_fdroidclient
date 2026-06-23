@@ -9,7 +9,7 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.LayoutRes;
 import androidx.core.content.ContextCompat;
 
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 
 /**
  * A {@link android.view.View} that registers to handle the swap events from

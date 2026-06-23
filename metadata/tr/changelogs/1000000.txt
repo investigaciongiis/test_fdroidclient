@@ -1,7 +1,7 @@
-* Medya, OTA, ZIP vb. dosyaları yükleme desteği
+* Medya, OTA, ZIP, vb. dosya türlerini yüklemeyi destekleme
 
-* Birden fazla imzalama anahtarıyla imzalanan APK'lar için tam destek
+* Birden fazla imzalama anahtarları ile imzalanan APK'lar için tam destek
 
 * Yeni Tibetçe çeviri
 
-* Depoyu kapattıktan sonra ilgili uygulamaları ve kategorileri kaldırma
+* Bir depoyu kapattıktan sonra ilgili uygulamaları ve kategorileri kaldırma

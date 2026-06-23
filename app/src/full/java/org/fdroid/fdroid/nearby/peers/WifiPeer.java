@@ -4,8 +4,8 @@ import android.net.Uri;
 import android.os.Parcel;
 import android.text.TextUtils;
 
-import org.fdroid.R;
-import org.fdroid.fdroid.nearby.NewRepoConfig;
+import org.fdroid.fdroid.R;
+import org.fdroid.fdroid.data.NewRepoConfig;
 
 public class WifiPeer implements Peer {
 

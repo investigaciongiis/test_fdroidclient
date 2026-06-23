@@ -23,6 +23,7 @@ import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Environment;
 import android.os.Process;
 import android.util.Log;
@@ -32,8 +33,13 @@ import androidx.core.app.JobIntentService;
 import androidx.core.content.ContextCompat;
 
 import org.fdroid.fdroid.Utils;
+import org.fdroid.index.SigningException;
+import org.fdroid.index.v1.IndexV1UpdaterKt;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,7 +57,7 @@ import java.util.List;
  * <p>
  * Scanning the removable storage requires that the user allowed it.  This
  * requires both the {@link org.fdroid.fdroid.Preferences#isScanRemovableStorageEnabled()}
- * and the {@link Manifest.permission#READ_EXTERNAL_STORAGE}
+ * and the {@link android.Manifest.permission#READ_EXTERNAL_STORAGE}
  * permission to be enabled.
  *
  * @see TreeUriScannerIntentService TreeUri method for writing repos to be shared
@@ -65,6 +71,7 @@ public class SDCardScannerService extends JobIntentService {
     private static final String ACTION_SCAN = "org.fdroid.fdroid.nearby.SCAN";
 
     private static final List<String> SKIP_DIRS = Arrays.asList(".android_secure", "LOST.DIR");
+
 
     public static void scan(Context context) {
         Intent intent = new Intent(context, SDCardScannerService.class);
@@ -142,7 +149,23 @@ public class SDCardScannerService extends JobIntentService {
         for (File file : files) {
             if (file.isDirectory()) {
                 searchDirectory(file);
+            } else {
+                if (IndexV1UpdaterKt.SIGNED_FILE_NAME.equals(file.getName())) {
+                    registerRepo(file);
+                }
             }
+        }
+    }
+
+    private void registerRepo(File file) {
+        InputStream inputStream = null;
+        try {
+            inputStream = new FileInputStream(file);
+            TreeUriScannerIntentService.registerRepo(this, inputStream, Uri.fromFile(file.getParentFile()));
+        } catch (IOException | SigningException e) {
+            e.printStackTrace();
+        } finally {
+            Utils.closeQuietly(inputStream);
         }
     }
 }

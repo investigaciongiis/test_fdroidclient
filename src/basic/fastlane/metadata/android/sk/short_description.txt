@@ -1,1 +1,0 @@
-Minimálna klientska aplikácia pre obchod s aplikáciami, ktorá rešpektuje slobodu a súkromie

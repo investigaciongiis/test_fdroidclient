@@ -1,16 +1,13 @@
 package org.fdroid.fdroid.nearby;
 
-import static android.Manifest.permission.BLUETOOTH_CONNECT;
-import static android.Manifest.permission.BLUETOOTH_SCAN;
-import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static androidx.core.content.ContextCompat.checkSelfPermission;
-
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Message;
@@ -18,17 +15,17 @@ import android.os.Process;
 import android.text.TextUtils;
 import android.util.Log;
 
-import androidx.annotation.RequiresPermission;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 import org.fdroid.fdroid.nearby.peers.BluetoothPeer;
 
 import java.lang.ref.WeakReference;
 
 /**
- * Manage the {@link BluetoothAdapter}in a {@link HandlerThread}.
+ * Manage the {@link android.bluetooth.BluetoothAdapter}in a {@link HandlerThread}.
  * The start process is in {@link HandlerThread#onLooperPrepared()} so that it is
  * always started before any messages get delivered from the queue.
  *
@@ -59,7 +56,7 @@ public class BluetoothManager {
     /**
      * Stops the Bluetooth adapter, triggering a status broadcast via {@link #ACTION_STATUS}.
      * {@link #STATUS_STOPPED} can be broadcast multiple times for the same session,
-     * so make sure {@link BroadcastReceiver}s handle duplicates.
+     * so make sure {@link android.content.BroadcastReceiver}s handle duplicates.
      */
     public static void stop(Context context) {
         BluetoothManager.context = new WeakReference<>(context);
@@ -75,12 +72,12 @@ public class BluetoothManager {
     /**
      * Starts the service, triggering a status broadcast via {@link #ACTION_STATUS}.
      * {@link #STATUS_STARTED} can be broadcast multiple times for the same session,
-     * so make sure {@link BroadcastReceiver}s handle duplicates.
+     * so make sure {@link android.content.BroadcastReceiver}s handle duplicates.
      */
     public static void start(final Context context) {
-        if (checkSelfPermission(context, BLUETOOTH_CONNECT) != PERMISSION_GRANTED ||
-                checkSelfPermission(context, BLUETOOTH_SCAN) != PERMISSION_GRANTED) {
-            // TODO we either throw away that Bluetooth code or properly request permissions
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) !=
+                PackageManager.PERMISSION_GRANTED) {
+            // TODO we either throw away that Bluetooth code or properly request permissions here
             return;
         }
         BluetoothManager.context = new WeakReference<>(context);
@@ -92,7 +89,6 @@ public class BluetoothManager {
 
         final BluetoothServer bluetoothServer = new BluetoothServer(context.getFilesDir());
         handlerThread = new HandlerThread("BluetoothManager", Process.THREAD_PRIORITY_LESS_FAVORABLE) {
-            @RequiresPermission(allOf = {BLUETOOTH_CONNECT, BLUETOOTH_SCAN})
             @Override
             protected void onLooperPrepared() {
                 LocalBroadcastManager localBroadcastManager = LocalBroadcastManager.getInstance(context);
@@ -120,7 +116,6 @@ public class BluetoothManager {
         };
         handlerThread.start();
         handler = new Handler(handlerThread.getLooper()) {
-            @RequiresPermission(allOf = {BLUETOOTH_SCAN, BLUETOOTH_CONNECT})
             @Override
             public void handleMessage(Message msg) {
                 LocalBroadcastManager localBroadcastManager = LocalBroadcastManager.getInstance(context);
@@ -171,16 +166,13 @@ public class BluetoothManager {
         LocalBroadcastManager.getInstance(context.get()).sendBroadcast(intent);
     }
 
-    @RequiresPermission(BLUETOOTH_CONNECT)
     private static final BroadcastReceiver bluetoothDeviceFound = new BroadcastReceiver() {
         @Override
-        @RequiresPermission(BLUETOOTH_CONNECT)
         public void onReceive(Context context, Intent intent) {
             sendFoundBroadcast(context, (BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE));
         }
     };
 
-    @RequiresPermission(BLUETOOTH_CONNECT)
     private static void sendFoundBroadcast(Context context, BluetoothDevice device) {
         BluetoothPeer bluetoothPeer = BluetoothPeer.getInstance(device);
         if (bluetoothPeer == null) {

@@ -4,8 +4,6 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 
-import androidx.annotation.RequiresPermission;
-
 import java.io.IOException;
 
 public class BluetoothClient {
@@ -17,7 +15,6 @@ public class BluetoothClient {
         device = BluetoothAdapter.getDefaultAdapter().getRemoteDevice(macAddress);
     }
 
-    @RequiresPermission("android.permission.BLUETOOTH_CONNECT")
     public BluetoothConnection openConnection() throws IOException {
 
         BluetoothConnection connection = null;

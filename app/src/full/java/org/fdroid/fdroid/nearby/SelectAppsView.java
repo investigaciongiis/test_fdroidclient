@@ -22,7 +22,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 
 import java.util.ArrayList;

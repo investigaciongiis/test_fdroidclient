@@ -19,7 +19,7 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import org.fdroid.fdroid.FDroidApp;
 import org.fdroid.fdroid.Preferences;
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 import org.fdroid.fdroid.nearby.peers.BonjourPeer;
 

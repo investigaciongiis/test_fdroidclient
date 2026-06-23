@@ -1,6 +1,5 @@
 # F-Droid Client
 
-
 [![build status](https://gitlab.com/fdroid/fdroidclient/badges/master/pipeline.svg)](https://gitlab.com/fdroid/fdroidclient/-/jobs)
 [![Translation status](https://hosted.weblate.org/widgets/f-droid/-/svg-badge.svg)](https://hosted.weblate.org/engage/f-droid/)
 
@@ -15,13 +14,6 @@ for Android.
 
 You can [download the application](https://f-droid.org/F-Droid.apk) directly
 from our site or [browse it in the repo](https://f-droid.org/app/org.fdroid.fdroid).
-
-## Coding style
-
-This project uses [ktfmt](https://github.com/facebook/ktfmt) and enforces it via CI.
-You can run the following to auto-format your changes:
-
-    ./gradlew ktfmtFormat
 
 ## Libraries
 

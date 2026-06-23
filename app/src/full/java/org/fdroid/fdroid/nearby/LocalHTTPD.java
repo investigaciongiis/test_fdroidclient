@@ -36,7 +36,7 @@ package org.fdroid.fdroid.nearby;
 import android.content.Context;
 import android.net.Uri;
 
-import org.fdroid.BuildConfig;
+import org.fdroid.fdroid.BuildConfig;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -248,7 +248,7 @@ public class LocalHTTPD extends NanoHTTPD {
         return addResponseHeaders(NanoHTTPD.newFixedLengthResponse(msg));
     }
 
-    public static Response newFixedLengthResponse(IStatus status, String mimeType,
+    public static Response newFixedLengthResponse(Response.IStatus status, String mimeType,
                                                   InputStream data, long totalBytes) {
         return addResponseHeaders(NanoHTTPD.newFixedLengthResponse(status, mimeType, data, totalBytes));
     }

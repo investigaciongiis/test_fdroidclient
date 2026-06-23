@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">@string/app_name_basic</string>
+    <string name="app_name_debug" translatable="false">F-Droid Basic Debug</string>
+    <string name="about_title">@string/about_title_basic</string>
 </resources>

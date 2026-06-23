@@ -1,4 +1,4 @@
-* „Neues“ hebt Apps mit Beschreibungen, Übersetzungen, Bildern hervor
+* „Neueste“ hebt Apps mit Beschreibungen, Übersetzungen, Bildern hervor
 
 * Autom. Mirror-Downloads für schnellere Downloads und geringere f-droid.org-Belastung
 

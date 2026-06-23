@@ -3,7 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    tools:context=".views.main.MainActivity"
+    android:background="?attr/mainTabSwapBackground">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
@@ -20,7 +22,9 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/both_parties_need_fdroid_text"
             android:layout_marginTop="36dp"
-            android:scaleType="fitXY" />
+            app:tint="?attr/mainTabSwapSplashTint"
+            android:scaleType="fitXY"
+            tools:targetApi="jelly_bean" />
 
         <TextView
             android:id="@+id/title"
@@ -33,6 +37,7 @@
             android:textAlignment="center"
             android:gravity="center"
             android:textSize="20sp"
+            android:textColor="?attr/lightGrayTextColor"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -43,6 +48,7 @@
             android:layout_height="wrap_content"
             android:maxEms="16"
             android:text="@string/nearby_splash__find_people_button"
+            style="@style/DetailsSecondaryButtonStyle"
             app:layout_constraintTop_toBottomOf="@+id/title"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
@@ -58,6 +64,7 @@
             android:textSize="15sp"
             android:textAlignment="center"
             android:gravity="center"
+            android:textColor="?attr/lightGrayTextColor"
             app:layout_constraintTop_toBottomOf="@+id/find_people_button"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
@@ -72,6 +79,7 @@
             android:layout_weight="1"
             android:text="@string/nearby_splash__read_external_storage"
             android:textSize="17sp"
+            android:textColor="?attr/lightGrayTextColor"
             android:textAlignment="center"
             android:gravity="center"
             android:layout_marginEnd="24dp"
@@ -91,6 +99,7 @@
             android:layout_height="wrap_content"
             android:maxEms="16"
             android:text="@string/nearby_splash__request_permission"
+            style="@style/DetailsSecondaryButtonStyle"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginEnd="8dp"
             android:layout_marginRight="8dp"
@@ -109,6 +118,7 @@
             android:layout_weight="1"
             android:text="@string/nearby_splash__document_tree"
             android:textSize="17sp"
+            android:textColor="?attr/lightGrayTextColor"
             android:textAlignment="center"
             android:gravity="center"
             android:layout_marginEnd="24dp"
@@ -127,6 +137,7 @@
             android:layout_height="wrap_content"
             android:maxEms="16"
             android:text="@string/nearby_splash__request_permission"
+            style="@style/DetailsSecondaryButtonStyle"
             app:layout_constraintEnd_toEndOf="parent"
             android:layout_marginEnd="8dp"
             android:layout_marginRight="8dp"

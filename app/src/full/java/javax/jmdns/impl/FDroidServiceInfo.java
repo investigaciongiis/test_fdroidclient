@@ -110,7 +110,7 @@ public class FDroidServiceInfo extends ServiceInfoImpl implements Parcelable {
         }
     }
 
-    public static final Creator<FDroidServiceInfo> CREATOR = new Creator<FDroidServiceInfo>() {
+    public static final Parcelable.Creator<FDroidServiceInfo> CREATOR = new Parcelable.Creator<FDroidServiceInfo>() {
         public FDroidServiceInfo createFromParcel(Parcel source) {
             return new FDroidServiceInfo(source);
         }

@@ -1,8 +1,7 @@
-* Interfejs użytkownika napisany od nowa w Kotlin Compose.
-* Ulepszona wyszukiwarka umożliwiająca przeszukiwanie opisów i tłumaczeń.
-* Łatwiejsze odkrywanie nowych aplikacji z wyróżnieniem najczęściej pobieranych.
-* Zatwierdzanie instalacji *przed* pobraniem.
-* Wiele aktualizacji/pobierań w tym samym czasie.
-* Powiadamianie użytkownika o problemach z aplikacjami (np. zmiana klucza podpisu).
-* Opcjonalny motyw kolorystyczny Material You.
-* Ulepszone filtrowanie list.
+* Naprawiono używanie repozytoriów i serwerów lustrzanych z pamięci zewnętrznej w najnowszych wersjach Androida
+* Ulepszono zarządzanie Wi-Fi w pobliżu
+* Pasek nawigacyjny zapamiętuje teraz swoją pozycję nawet po restarcie F-Droid
+* Nowy język: suahili
+* Naprawiono pobieranie obrazów w repozytoriach nadal używających index-v1
+* Naprawiono awarie związane z wymianą, zarządzaniem repozytoriami i więcej
+* Przycisk cofnięcia do starszej wersji został usunięty, Android już na to nie pozwala

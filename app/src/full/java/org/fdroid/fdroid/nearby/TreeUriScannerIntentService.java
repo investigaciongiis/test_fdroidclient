@@ -19,39 +19,53 @@
 
 package org.fdroid.fdroid.nearby;
 
+import android.app.IntentService;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Process;
+import android.util.Log;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.core.app.JobIntentService;
 import androidx.documentfile.provider.DocumentFile;
 
-import org.fdroid.R;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.fdroid.database.Repository;
+import org.fdroid.fdroid.AddRepoIntentService;
+import org.fdroid.fdroid.FDroidApp;
+import org.fdroid.fdroid.R;
+import org.fdroid.fdroid.Utils;
 import org.fdroid.index.SigningException;
 import org.fdroid.index.v1.IndexV1UpdaterKt;
+import org.fdroid.index.v1.IndexV1VerifierKt;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.CodeSigner;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+import java.util.jar.JarInputStream;
 
 /**
  * An {@link JobIntentService} subclass for handling asynchronous scanning of a
  * removable storage device like an SD Card or USB OTG thumb drive using the
  * Storage Access Framework.  Permission must first be granted by the user
- * {@link Intent#ACTION_OPEN_DOCUMENT_TREE} or
+ * {@link android.content.Intent#ACTION_OPEN_DOCUMENT_TREE} or
  * {@link android.os.storage.StorageVolume#createAccessIntent(String)}request,
  * then F-Droid will have permanent access to that{@link Uri}.
  * <p>
  * Even though the Storage Access Framework was introduced in
  * {@link android.os.Build.VERSION_CODES#KITKAT android-19}, this approach is only
- * workable if {@link Intent#ACTION_OPEN_DOCUMENT_TREE} is available.
+ * workable if {@link android.content.Intent#ACTION_OPEN_DOCUMENT_TREE} is available.
  * It was added in {@link android.os.Build.VERSION_CODES#LOLLIPOP android-21}.
  * {@link android.os.storage.StorageVolume#createAccessIntent(String)} is also
  * necessary to do this with any kind of rational UX.
@@ -134,6 +148,7 @@ public class TreeUriScannerIntentService extends JobIntentService {
                 dirs.add(documentFile);
             } else if (!foundIndex) {
                 if (IndexV1UpdaterKt.SIGNED_FILE_NAME.equals(documentFile.getName())) {
+                    registerRepo(documentFile);
                     foundIndex = true;
                 }
             }
@@ -141,6 +156,55 @@ public class TreeUriScannerIntentService extends JobIntentService {
         for (DocumentFile dir : dirs) {
             searchDirectory(dir);
         }
+    }
+
+    /**
+     * For all files called {@link IndexV1UpdaterKt#SIGNED_FILE_NAME} found, check
+     * the JAR signature and read the fingerprint of the signing certificate.
+     * The fingerprint is then used to find whether this local repo is a mirror
+     * of an existing repo, or a totally new repo.  In order to verify the
+     * signatures in the JAR, the whole file needs to be read in first.
+     *
+     * @see JarInputStream#JarInputStream(InputStream, boolean)
+     */
+    private void registerRepo(DocumentFile index) {
+        InputStream inputStream = null;
+        try {
+            inputStream = getContentResolver().openInputStream(index.getUri());
+            registerRepo(this, inputStream, index.getParentFile().getUri());
+        } catch (IOException | SigningException e) {
+            e.printStackTrace();
+        } finally {
+            Utils.closeQuietly(inputStream);
+        }
+    }
+
+    public static void registerRepo(Context context, InputStream inputStream, Uri repoUri)
+            throws IOException, SigningException {
+        if (inputStream == null) {
+            return;
+        }
+        File destFile = File.createTempFile("dl-", IndexV1UpdaterKt.SIGNED_FILE_NAME, context.getCacheDir());
+        FileUtils.copyInputStreamToFile(inputStream, destFile);
+        JarFile jarFile = new JarFile(destFile, true);
+        JarEntry indexEntry = (JarEntry) jarFile.getEntry(IndexV1VerifierKt.DATA_FILE_NAME);
+        IOUtils.readLines(jarFile.getInputStream(indexEntry));
+        Certificate certificate = getSigningCertFromJar(indexEntry);
+        String fingerprint = Utils.calcFingerprint(certificate);
+        Log.i(TAG, "Got fingerprint: " + fingerprint);
+        destFile.delete();
+
+        Log.i(TAG, "Found a valid, signed index-v1.json");
+        for (Repository repo : FDroidApp.getRepoManager(context).getRepositories()) {
+            if (fingerprint.equals(repo.getFingerprint())) {
+                Log.i(TAG, repo.getAddress() + " has the SAME fingerprint: " + fingerprint);
+            } else {
+                Log.i(TAG, repo.getAddress() + " different fingerprint");
+            }
+        }
+
+        AddRepoIntentService.addRepo(context, repoUri, fingerprint);
+        // TODO rework IndexUpdater.getSigningCertFromJar to work for here
     }
 
     /**

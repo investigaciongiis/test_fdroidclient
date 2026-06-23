@@ -17,19 +17,18 @@ import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.progressindicator.CircularProgressIndicator;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import org.fdroid.fdroid.FDroidApp;
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 import org.fdroid.fdroid.nearby.peers.Peer;
 
@@ -82,14 +81,14 @@ public class StartSwapView extends SwapView {
     @Nullable /* Emulators typically don't have bluetooth adapters */
     private final BluetoothAdapter bluetooth = BluetoothAdapter.getDefaultAdapter();
 
-    private MaterialSwitch bluetoothSwitch;
+    private SwitchMaterial bluetoothSwitch;
     private TextView viewBluetoothId;
     private TextView textBluetoothVisible;
     private TextView viewWifiId;
     private TextView viewWifiNetwork;
     private TextView peopleNearbyText;
     private ListView peopleNearbyList;
-    private CircularProgressIndicator peopleNearbyProgress;
+    private ProgressBar peopleNearbyProgress;
 
     private PeopleNearbyAdapter peopleNearbyAdapter;
 
@@ -145,7 +144,7 @@ public class StartSwapView extends SwapView {
 
         peopleNearbyText = (TextView) findViewById(R.id.text_people_nearby);
         peopleNearbyList = (ListView) findViewById(R.id.list_people_nearby);
-        peopleNearbyProgress = (CircularProgressIndicator) findViewById(R.id.searching_people_nearby);
+        peopleNearbyProgress = (ProgressBar) findViewById(R.id.searching_people_nearby);
 
         peopleNearbyAdapter = new PeopleNearbyAdapter(getContext());
         peopleNearbyList.setAdapter(peopleNearbyAdapter);
@@ -162,18 +161,16 @@ public class StartSwapView extends SwapView {
     }
 
     private void uiInitBluetooth() {
-        if (bluetooth != null) {
+        if (bluetooth != null && ContextCompat.checkSelfPermission(getContext(),
+                Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
 
             viewBluetoothId = (TextView) findViewById(R.id.device_id_bluetooth);
-            if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT) ==
-                    PackageManager.PERMISSION_GRANTED) {
-                viewBluetoothId.setText(bluetooth.getName());
-            }
+            viewBluetoothId.setText(bluetooth.getName());
             viewBluetoothId.setVisibility(bluetooth.isEnabled() ? View.VISIBLE : View.GONE);
 
             textBluetoothVisible = findViewById(R.id.bluetooth_visible);
 
-            bluetoothSwitch = (MaterialSwitch) findViewById(R.id.switch_bluetooth);
+            bluetoothSwitch = (SwitchMaterial) findViewById(R.id.switch_bluetooth);
             bluetoothSwitch.setOnCheckedChangeListener(onBluetoothSwitchToggled);
             bluetoothSwitch.setChecked(SwapService.getBluetoothVisibleUserPreference());
             bluetoothSwitch.setEnabled(true);
@@ -187,18 +184,9 @@ public class StartSwapView extends SwapView {
         @Override
         public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
             if (isChecked) {
-                if (ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT) !=
-                        PackageManager.PERMISSION_GRANTED ||
-                        ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_SCAN) !=
-                                PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(getContext(), R.string.swap_bluetooth_permissions, Toast.LENGTH_LONG).show();
-                    bluetoothSwitch.setChecked(false);
-                    return;
-                }
                 Utils.debugLog(TAG, "Received onCheckChanged(true) for Bluetooth swap, prompting user as to whether they want to enable Bluetooth.");
                 getActivity().startBluetoothSwap();
                 textBluetoothVisible.setText(R.string.swap_visible_bluetooth);
-                viewBluetoothId.setText(bluetooth.getName());
                 viewBluetoothId.setVisibility(View.VISIBLE);
                 Utils.debugLog(TAG, "Received onCheckChanged(true) for Bluetooth swap (prompting user or setup Bluetooth complete)");
                 // TODO: When they deny the request for enabling bluetooth, we need to disable this switch...

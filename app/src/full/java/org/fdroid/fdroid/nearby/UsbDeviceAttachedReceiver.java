@@ -55,6 +55,7 @@ public class UsbDeviceAttachedReceiver extends BroadcastReceiver {
         for (final UriPermission uriPermission : contentResolver.getPersistedUriPermissions()) {
             Uri uri = uriPermission.getUri();
             final ContentObserver contentObserver = new ContentObserver(new Handler()) {
+
                 @Override
                 public void onChange(boolean selfChange, Uri uri) {
                     NearbyViewBinder.updateUsbOtg(context);

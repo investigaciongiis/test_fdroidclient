@@ -1,10 +1,6 @@
 package org.fdroid.fdroid.nearby;
 
-import static android.Manifest.permission.ACCESS_LOCAL_NETWORK;
-import static android.content.pm.PackageManager.PERMISSION_GRANTED;
-import static android.os.Build.VERSION.SDK_INT;
-import static android.view.WindowManager.LayoutParams.FLAG_SECURE;
-import static org.fdroid.fdroid.nearby.SwapService.ACTION_REQUEST_SWAP;
+import static org.fdroid.fdroid.views.main.MainActivity.ACTION_REQUEST_SWAP;
 
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
@@ -15,10 +11,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
 import android.graphics.LightingColorFilter;
 import android.net.Uri;
-import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -34,8 +28,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,45 +41,41 @@ import androidx.annotation.LayoutRes;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.SearchView;
 import androidx.core.content.ContextCompat;
-import androidx.lifecycle.ViewModelProvider;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.dialog.MaterialAlertDialogBuilder;
-import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.progressindicator.CircularProgressIndicator;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
-import org.fdroid.BuildConfig;
-import org.fdroid.LegacyUtils;
-import org.fdroid.R;
+import org.fdroid.fdroid.BuildConfig;
 import org.fdroid.fdroid.FDroidApp;
+import org.fdroid.fdroid.NfcHelper;
 import org.fdroid.fdroid.Preferences;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
+import org.fdroid.fdroid.data.NewRepoConfig;
 import org.fdroid.fdroid.nearby.peers.BluetoothPeer;
 import org.fdroid.fdroid.nearby.peers.Peer;
+import org.fdroid.fdroid.net.BluetoothDownloader;
 import org.fdroid.fdroid.qr.CameraCharacteristicsChecker;
-import org.fdroid.settings.SettingsManager;
-import org.fdroid.ui.nearby.SwapSuccessViewModel;
+import org.fdroid.fdroid.views.main.MainActivity;
 
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import javax.inject.Inject;
-
 import cc.mvdan.accesspoint.WifiApControl;
-import dagger.hilt.android.AndroidEntryPoint;
+import io.reactivex.rxjava3.disposables.CompositeDisposable;
 
 /**
  * This is the core of the UI for the whole nearby swap experience.  Each
@@ -109,7 +101,6 @@ import dagger.hilt.android.AndroidEntryPoint;
  * @see <a href="https://developer.squareup.com/blog/advocating-against-android-fragments/"></a>
  */
 @SuppressWarnings("LineLength")
-@AndroidEntryPoint
 public class SwapWorkflowActivity extends AppCompatActivity {
     private static final String TAG = "SwapWorkflowActivity";
 
@@ -123,15 +114,11 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     public static final String EXTRA_PREVENT_FURTHER_SWAP_REQUESTS = "preventFurtherSwap";
 
     private ViewGroup container;
-    SwapSuccessViewModel viewModel;
 
     private static final int REQUEST_BLUETOOTH_ENABLE_FOR_SWAP = 2;
     private static final int REQUEST_BLUETOOTH_DISCOVERABLE = 3;
     private static final int REQUEST_BLUETOOTH_ENABLE_FOR_SEND = 4;
     private static final int REQUEST_WRITE_SETTINGS_PERMISSION = 5;
-
-    @Inject
-    SettingsManager settingsManager;
 
     private MaterialToolbar toolbar;
     private SwapView currentView;
@@ -147,12 +134,9 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     private int currentSwapViewLayoutRes = R.layout.swap_start_swap;
     private final Stack<Integer> backstack = new Stack<>();
 
-    private final ActivityResultLauncher<String> requestPermissionLauncher =
-            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
-                if (isGranted) sendFDroidBluetooth();
-            });
+    private final CompositeDisposable compositeDisposable = new CompositeDisposable();
 
-    private final ActivityResultLauncher<String> requestLocalAccessLauncher =
+    private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
                 if (isGranted) sendFDroidBluetooth();
             });
@@ -162,7 +146,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     }
 
     public static void requestSwap(Context context, Uri uri) {
-        Intent intent = new Intent(ACTION_REQUEST_SWAP, uri, context, SwapWorkflowActivity.class);
+        Intent intent = new Intent(MainActivity.ACTION_REQUEST_SWAP, uri, context, SwapWorkflowActivity.class);
         intent.putExtra(EXTRA_PREVENT_FURTHER_SWAP_REQUESTS, true);
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         context.startActivity(intent);
@@ -177,7 +161,6 @@ public class SwapWorkflowActivity extends AppCompatActivity {
                     onRepoUpdateSuccess());
             service.getIndexError().observe(SwapWorkflowActivity.this, e ->
                     onRepoUpdateError(e));
-            viewModel.onServiceConnected(service);
             showRelevantView();
         }
 
@@ -186,7 +169,6 @@ public class SwapWorkflowActivity extends AppCompatActivity {
             finish();
             service.getIndex().removeObservers(SwapWorkflowActivity.this);
             service.getIndexError().removeObservers(SwapWorkflowActivity.this);
-            viewModel.onServiceDisconnected(service);
             service = null;
         }
     };
@@ -222,38 +204,50 @@ public class SwapWorkflowActivity extends AppCompatActivity {
      */
     public void onToolbarBackPressed() {
         int nextStep = R.layout.swap_start_swap;
-        if (currentView.getLayoutResId() == R.layout.swap_confirm_receive) {
-            nextStep = backstack.peek();
-        } else if (currentView.getLayoutResId() == R.layout.swap_connecting) {
-            nextStep = R.layout.swap_select_apps;
-        } else if (currentView.getLayoutResId() == R.layout.swap_join_wifi) {
-            nextStep = R.layout.swap_start_swap;
-        } else if (currentView.getLayoutResId() == R.layout.swap_select_apps) {
-            if (!backstack.isEmpty() && backstack.peek() == R.layout.swap_start_swap) {
+        switch (currentView.getLayoutResId()) {
+            case R.layout.swap_confirm_receive:
+                nextStep = backstack.peek();
+                break;
+            case R.layout.swap_connecting:
+                nextStep = R.layout.swap_select_apps;
+                break;
+            case R.layout.swap_join_wifi:
                 nextStep = R.layout.swap_start_swap;
-            } else if (getSwapService() != null && getSwapService().isConnectingWithPeer()) {
-                nextStep = R.layout.swap_success;
-            } else {
+                break;
+            case R.layout.swap_nfc:
                 nextStep = R.layout.swap_join_wifi;
-            }
-        } else if (currentView.getLayoutResId() == R.layout.swap_send_fdroid) {
-            nextStep = R.layout.swap_start_swap;
-        } else if (currentView.getLayoutResId() == R.layout.swap_start_swap) {
-            if (getSwapService() != null && getSwapService().isConnectingWithPeer()) {
-                nextStep = R.layout.swap_success;
-            } else {
-                SwapService.stop(this);
-                finish();
-                return;
-            }
-        } else if (currentView.getLayoutResId() == R.layout.swap_success) {
-            nextStep = R.layout.swap_start_swap;
-        } else if (currentView.getLayoutResId() == R.layout.swap_wifi_qr) {
-            if (!backstack.isEmpty() && backstack.peek() == R.layout.swap_start_swap) {
+                break;
+            case R.layout.swap_select_apps:
+                if (!backstack.isEmpty() && backstack.peek() == R.layout.swap_start_swap) {
+                    nextStep = R.layout.swap_start_swap;
+                } else if (getSwapService() != null && getSwapService().isConnectingWithPeer()) {
+                    nextStep = R.layout.swap_success;
+                } else {
+                    nextStep = R.layout.swap_join_wifi;
+                }
+                break;
+            case R.layout.swap_send_fdroid:
                 nextStep = R.layout.swap_start_swap;
-            } else {
-                nextStep = R.layout.swap_join_wifi;
-            }
+                break;
+            case R.layout.swap_start_swap:
+                if (getSwapService() != null && getSwapService().isConnectingWithPeer()) {
+                    nextStep = R.layout.swap_success;
+                } else {
+                    SwapService.stop(this);
+                    finish();
+                    return;
+                }
+                break;
+            case R.layout.swap_success:
+                nextStep = R.layout.swap_start_swap;
+                break;
+            case R.layout.swap_wifi_qr:
+                if (!backstack.isEmpty() && backstack.peek() == R.layout.swap_start_swap) {
+                    nextStep = R.layout.swap_start_swap;
+                } else {
+                    nextStep = R.layout.swap_join_wifi;
+                }
+                break;
         }
         currentSwapViewLayoutRes = nextStep;
         inflateSwapView(currentSwapViewLayoutRes);
@@ -261,16 +255,12 @@ public class SwapWorkflowActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        FDroidApp fdroidApp = (FDroidApp) getApplication();
+        fdroidApp.setSecureWindow(this);
+
+        fdroidApp.applyPureBlackBackgroundInDarkTheme(this);
+
         super.onCreate(savedInstanceState);
-        LegacyUtils.collectInJava(settingsManager.getPreventScreenshotsFlow(), preventScreenshots -> {
-            if (preventScreenshots) {
-                getWindow().addFlags(FLAG_SECURE);
-            } else {
-                getWindow().clearFlags(FLAG_SECURE);
-            }
-            return null;
-        });
-        viewModel = new ViewModelProvider(this).get(SwapSuccessViewModel.class);
 
         currentView = new SwapView(this); // dummy placeholder to avoid NullPointerExceptions;
 
@@ -301,6 +291,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        compositeDisposable.dispose();
         unbindService(serviceConnection);
         super.onDestroy();
     }
@@ -310,23 +301,28 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         menu.clear();
 
         MenuInflater menuInflater = getMenuInflater();
-        if (currentView.getLayoutResId() == R.layout.swap_select_apps) {
-            menuInflater.inflate(R.menu.swap_next_search, menu);
-            if (getSwapService().isConnectingWithPeer()) {
-                setUpNextButton(menu, R.string.next, R.drawable.ic_nearby);
-            } else {
-                setUpNextButton(menu, R.string.next, null);
-            }
-            setUpSearchView(menu);
-            return true;
-        } else if (currentView.getLayoutResId() == R.layout.swap_success) {
-            menuInflater.inflate(R.menu.swap_search, menu);
-            setUpSearchView(menu);
-            return true;
-        } else if (currentView.getLayoutResId() == R.layout.swap_join_wifi) {
-            menuInflater.inflate(R.menu.swap_next, menu);
-            setUpNextButton(menu, R.string.next, R.drawable.ic_arrow_forward);
-            return true;
+        switch (currentView.getLayoutResId()) {
+            case R.layout.swap_select_apps:
+                menuInflater.inflate(R.menu.swap_next_search, menu);
+                if (getSwapService().isConnectingWithPeer()) {
+                    setUpNextButton(menu, R.string.next, R.drawable.ic_nearby);
+                } else {
+                    setUpNextButton(menu, R.string.next, null);
+                }
+                setUpSearchView(menu);
+                return true;
+            case R.layout.swap_success:
+                menuInflater.inflate(R.menu.swap_search, menu);
+                setUpSearchView(menu);
+                return true;
+            case R.layout.swap_join_wifi:
+                menuInflater.inflate(R.menu.swap_next, menu);
+                setUpNextButton(menu, R.string.next, R.drawable.ic_arrow_forward);
+                return true;
+            case R.layout.swap_nfc:
+                menuInflater.inflate(R.menu.swap_next, menu);
+                setUpNextButton(menu, R.string.skip, R.drawable.ic_arrow_forward);
+                return true;
         }
 
         return super.onPrepareOptionsMenu(menu);
@@ -352,10 +348,16 @@ public class SwapWorkflowActivity extends AppCompatActivity {
 
     private void sendNext() {
         int currentLayoutResId = currentView.getLayoutResId();
-        if (currentLayoutResId == R.layout.swap_select_apps) {
-            onAppsSelected();
-        } else if (currentLayoutResId == R.layout.swap_join_wifi) {
-            inflateSwapView(R.layout.swap_select_apps);
+        switch (currentLayoutResId) {
+            case R.layout.swap_select_apps:
+                onAppsSelected();
+                break;
+            case R.layout.swap_join_wifi:
+                inflateSwapView(R.layout.swap_select_apps);
+                break;
+            case R.layout.swap_nfc:
+                inflateSwapView(R.layout.swap_wifi_qr);
+                break;
         }
     }
 
@@ -414,14 +416,15 @@ public class SwapWorkflowActivity extends AppCompatActivity {
 
         checkIncomingIntent();
 
-        // could be we just started the service and it wasn't bound, yet
-        if (service != null && newIntent) {
+        if (newIntent) {
             showRelevantView();
             newIntent = false;
         }
 
-        if (currentSwapViewLayoutRes == R.layout.swap_start_swap) {
-            updateWifiBannerVisibility();
+        switch (currentSwapViewLayoutRes) {
+            case R.layout.swap_start_swap:
+                updateWifiBannerVisibility();
+                break;
         }
     }
 
@@ -458,13 +461,12 @@ public class SwapWorkflowActivity extends AppCompatActivity {
             return;
         }
         Uri uri = intent.getData();
-        if (uri != null && !isSwapUrl(uri)) {
+        if (uri != null && !isSwapUrl(uri) && !BluetoothDownloader.isBluetoothUri(uri)) {
             String msg = getString(R.string.swap_toast_invalid_url, uri);
             Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
             return;
         }
         confirmSwapConfig = new NewRepoConfig(this, intent);
-        checkIfNewRepoOnSameWifi(confirmSwapConfig);
     }
 
     private static boolean isSwapUrl(Uri uri) {
@@ -478,7 +480,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     }
 
     private void promptToSelectWifiNetwork() {
-        new MaterialAlertDialogBuilder(this)
+        new AlertDialog.Builder(this)
                 .setTitle(R.string.swap_join_same_wifi)
                 .setMessage(R.string.swap_join_same_wifi_desc)
                 .setNeutralButton(R.string.cancel, (dialog, which) -> {
@@ -515,13 +517,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT <= 28) {
             wifiManager.setWifiEnabled(false);
         }
-        boolean wifiEnabled = false;
-        try {
-            wifiEnabled = wifiApControl.enable();
-        } catch (Exception e) {
-            Log.e(TAG, "Error enabling WiFi: ", e);
-        }
-        if (wifiEnabled) {
+        if (wifiApControl.enable()) {
             Toast.makeText(this, R.string.swap_toast_hotspot_enabled, Toast.LENGTH_SHORT).show();
             SwapService.putHotspotActivatedUserPreference(true);
         } else {
@@ -543,13 +539,20 @@ public class SwapWorkflowActivity extends AppCompatActivity {
             return;
         }
 
-        if (currentSwapViewLayoutRes == R.layout.swap_start_swap) {
-            showIntro();
-            return;
-        } else if (currentSwapViewLayoutRes == R.layout.swap_connecting) {
-            // TODO: Properly decide what to do here (i.e. returning to the activity after it was connecting)...
-            inflateSwapView(R.layout.swap_start_swap);
-            return;
+        switch (currentSwapViewLayoutRes) {
+            case R.layout.swap_start_swap:
+                showIntro();
+                return;
+            case R.layout.swap_nfc:
+                if (!attemptToShowNfc()) {
+                    inflateSwapView(R.layout.swap_wifi_qr);
+                    return;
+                }
+                break;
+            case R.layout.swap_connecting:
+                // TODO: Properly decide what to do here (i.e. returning to the activity after it was connecting)...
+                inflateSwapView(R.layout.swap_start_swap);
+                return;
         }
         inflateSwapView(currentSwapViewLayoutRes);
     }
@@ -557,8 +560,10 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     public void inflateSwapView(@LayoutRes int viewRes) {
         inflateSwapView(viewRes, false);
 
-        if (viewRes == R.layout.swap_start_swap) {
-            updateWifiBannerVisibility();
+        switch (viewRes) {
+            case R.layout.swap_start_swap:
+                updateWifiBannerVisibility();
+                break;
         }
     }
 
@@ -589,19 +594,21 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         getSwapService().initTimer();
 
         if (!backPressed) {
-            if (currentSwapViewLayoutRes == R.layout.swap_connecting ||
-                    currentSwapViewLayoutRes == R.layout.swap_confirm_receive) {
-                // do not add to backstack
-            } else {
-                if (backstack.isEmpty()) {
-                    if (viewRes != R.layout.swap_start_swap) {
-                        backstack.push(currentSwapViewLayoutRes);
+            switch (currentSwapViewLayoutRes) {
+                case R.layout.swap_connecting:
+                case R.layout.swap_confirm_receive:
+                    // do not add to backstack
+                    break;
+                default:
+                    if (backstack.isEmpty()) {
+                        if (viewRes != R.layout.swap_start_swap) {
+                            backstack.push(currentSwapViewLayoutRes);
+                        }
+                    } else {
+                        if (backstack.peek() != currentSwapViewLayoutRes) {
+                            backstack.push(currentSwapViewLayoutRes);
+                        }
                     }
-                } else {
-                    if (backstack.peek() != currentSwapViewLayoutRes) {
-                        backstack.push(currentSwapViewLayoutRes);
-                    }
-                }
             }
         }
 
@@ -615,35 +622,45 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         toolbar.setTitle(currentView.getToolbarTitle());
         toolbar.setNavigationOnClickListener(v -> onToolbarBackPressed());
         toolbar.setNavigationOnClickListener(v -> {
-            if (currentView.getLayoutResId() == R.layout.swap_start_swap) {
-                SwapService.stop(this);
-                finish();
-                return;
-            } else {
-                currentSwapViewLayoutRes = R.layout.swap_start_swap;
+            switch (currentView.getLayoutResId()) {
+                case R.layout.swap_start_swap:
+                    SwapService.stop(this);
+                    finish();
+                    return;
+                default:
+                    currentSwapViewLayoutRes = R.layout.swap_start_swap;
             }
             inflateSwapView(currentSwapViewLayoutRes);
         });
         if (viewRes == R.layout.swap_start_swap) {
             toolbar.setNavigationIcon(R.drawable.ic_close);
         } else {
-            toolbar.setNavigationIcon(R.drawable.ic_arrow_back);
+            toolbar.setNavigationIcon(R.drawable.abc_ic_ab_back_material);
         }
         container.addView(view);
         supportInvalidateOptionsMenu();
 
-        if (currentView.getLayoutResId() == R.layout.swap_send_fdroid) {
-            setUpFromWifi();
-            setUpUseBluetoothButton();
-        } else if (currentView.getLayoutResId() == R.layout.swap_wifi_qr) {
-            setUpFromWifi();
-            setUpQrScannerButton();
-        } else if (currentView.getLayoutResId() == R.layout.swap_select_apps) {
-            LocalRepoService.create(this, getSwapService().getAppsToSwap());
-        } else if (currentView.getLayoutResId() == R.layout.swap_connecting) {
-            setUpConnectingView();
-        } else if (currentView.getLayoutResId() == R.layout.swap_start_swap) {
-            setUpStartVisibility();
+        switch (currentView.getLayoutResId()) {
+            case R.layout.swap_send_fdroid:
+                setUpFromWifi();
+                setUpUseBluetoothButton();
+                break;
+            case R.layout.swap_wifi_qr:
+                setUpFromWifi();
+                setUpQrScannerButton();
+                break;
+            case R.layout.swap_nfc:
+                setUpNfcView();
+                break;
+            case R.layout.swap_select_apps:
+                LocalRepoService.create(this, getSwapService().getAppsToSwap());
+                break;
+            case R.layout.swap_connecting:
+                setUpConnectingView();
+                break;
+            case R.layout.swap_start_swap:
+                setUpStartVisibility();
+                break;
         }
     }
 
@@ -694,13 +711,21 @@ public class SwapWorkflowActivity extends AppCompatActivity {
      * automatically enable Bluetooth.
      */
     public void sendFDroidBluetooth() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
-            Intent discoverBt = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
-            discoverBt.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120);
-            startActivityForResult(discoverBt, REQUEST_BLUETOOTH_ENABLE_FOR_SEND);
-        } else {
-            requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT);
+        if (bluetoothAdapter.isEnabled()) {
+            sendFDroidApk();
+        } else if (Build.VERSION.SDK_INT >= 31) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                Intent discoverBt = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+                discoverBt.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120);
+                startActivityForResult(discoverBt, REQUEST_BLUETOOTH_ENABLE_FOR_SEND);
+            } else {
+                requestPermissionLauncher.launch(Manifest.permission.BLUETOOTH_CONNECT);
+            }
         }
+    }
+
+    private void sendFDroidApk() {
+        ((FDroidApp) getApplication()).sendViaBluetooth(this, AppCompatActivity.RESULT_OK, BuildConfig.APPLICATION_ID);
     }
 
     /**
@@ -734,7 +759,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         hasPreparedLocalRepo = true;
         if (getSwapService().isConnectingWithPeer()) {
             startSwappingWithPeer();
-        } else {
+        } else if (!attemptToShowNfc()) {
             inflateSwapView(R.layout.swap_wifi_qr);
         }
     }
@@ -742,6 +767,23 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     private void startSwappingWithPeer() {
         getSwapService().connectToPeer();
         inflateSwapView(R.layout.swap_connecting);
+    }
+
+    private boolean attemptToShowNfc() {
+        // TODO: What if NFC is disabled? Hook up with NfcNotEnabledActivity? Or maybe only if they
+        // click a relevant button?
+
+        // Even if they opted to skip the message which says "Touch devices to swap",
+        // we still want to actually enable the feature, so that they could touch
+        // during the wifi qr code being shown too.
+        boolean nfcMessageReady = NfcHelper.setPushMessage(this, Utils.getSharingUri(FDroidApp.repo));
+
+        // TODO move all swap-specific preferences to a SharedPreferences instance for SwapWorkflowActivity
+        if (Preferences.get().showNfcDuringSwap() && nfcMessageReady) {
+            inflateSwapView(R.layout.swap_nfc);
+            return true;
+        }
+        return false;
     }
 
     public void swapWith(Peer peer) {
@@ -790,7 +832,6 @@ public class SwapWorkflowActivity extends AppCompatActivity {
             if (scanResult.getContents() != null) {
                 NewRepoConfig repoConfig = new NewRepoConfig(this, scanResult.getContents());
                 if (repoConfig.isValidRepo()) {
-                    checkIfNewRepoOnSameWifi(repoConfig);
                     confirmSwapConfig = repoConfig;
                     showRelevantView();
                 } else {
@@ -821,27 +862,8 @@ public class SwapWorkflowActivity extends AppCompatActivity {
                 SwapService.putBluetoothVisibleUserPreference(false);
             }
 
-        }
-    }
-
-    private void checkIfNewRepoOnSameWifi(NewRepoConfig newRepo) {
-        // if this is a local repo, check we're on the same wifi
-        if (!TextUtils.isEmpty(newRepo.getBssid())) {
-            WifiManager wifiManager = ContextCompat.getSystemService(getApplicationContext(),
-                    WifiManager.class);
-            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-            String bssid = wifiInfo.getBSSID();
-            if (TextUtils.isEmpty(bssid)) { /* not all devices have wifi */
-                return;
-            }
-            bssid = bssid.toLowerCase(Locale.ENGLISH);
-            String newRepoBssid = Uri.decode(newRepo.getBssid()).toLowerCase(Locale.ENGLISH);
-            if (!bssid.equals(newRepoBssid)) {
-                String msg = getString(R.string.not_on_same_wifi, newRepo.getSsid());
-                Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-            }
-            // TODO we should help the user to the right thing here,
-            // instead of just showing a message!
+        } else if (requestCode == REQUEST_BLUETOOTH_ENABLE_FOR_SEND) {
+            sendFDroidApk();
         }
     }
 
@@ -884,7 +906,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     private final BroadcastReceiver bluetoothScanModeChanged = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            MaterialSwitch bluetoothSwitch = container.findViewById(R.id.switch_bluetooth);
+            SwitchMaterial bluetoothSwitch = container.findViewById(R.id.switch_bluetooth);
             TextView textBluetoothVisible = container.findViewById(R.id.bluetooth_visible);
             if (bluetoothSwitch == null || textBluetoothVisible == null
                     || !BluetoothManager.ACTION_STATUS.equals(intent.getAction())) {
@@ -1000,57 +1022,64 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         }
 
         String qrUriString = null;
-        if (currentView.getLayoutResId() == R.layout.swap_join_wifi) {
-            setUpJoinWifi();
-            return;
-        } else if (currentView.getLayoutResId() == R.layout.swap_send_fdroid) {
-            qrUriString = buttonLabel;
-        } else if (currentView.getLayoutResId() == R.layout.swap_wifi_qr) {
-            Uri sharingUri = Utils.getSharingUri(FDroidApp.repo);
-            StringBuilder qrUrlBuilder = new StringBuilder(scheme);
-            qrUrlBuilder.append(sharingUri.getHost());
-            if (sharingUri.getPort() != 80) {
-                qrUrlBuilder.append(':');
-                qrUrlBuilder.append(sharingUri.getPort());
-            }
-            qrUrlBuilder.append(sharingUri.getPath());
-            boolean first = true;
-
-            Set<String> names = sharingUri.getQueryParameterNames();
-            for (String name : names) {
-                if (!"ssid".equals(name)) {
-                    if (first) {
-                        qrUrlBuilder.append('?');
-                        first = false;
-                    } else {
-                        qrUrlBuilder.append('&');
-                    }
-                    qrUrlBuilder.append(name);
-                    qrUrlBuilder.append('=');
-                    qrUrlBuilder.append(sharingUri.getQueryParameter(name));
+        switch (currentView.getLayoutResId()) {
+            case R.layout.swap_join_wifi:
+                setUpJoinWifi();
+                return;
+            case R.layout.swap_send_fdroid:
+                qrUriString = buttonLabel;
+                break;
+            case R.layout.swap_wifi_qr:
+                Uri sharingUri = Utils.getSharingUri(FDroidApp.repo);
+                StringBuilder qrUrlBuilder = new StringBuilder(scheme);
+                qrUrlBuilder.append(sharingUri.getHost());
+                if (sharingUri.getPort() != 80) {
+                    qrUrlBuilder.append(':');
+                    qrUrlBuilder.append(sharingUri.getPort());
                 }
-            }
-            qrUriString = qrUrlBuilder.toString();
+                qrUrlBuilder.append(sharingUri.getPath());
+                boolean first = true;
+
+                Set<String> names = sharingUri.getQueryParameterNames();
+                for (String name : names) {
+                    if (!"ssid".equals(name)) {
+                        if (first) {
+                            qrUrlBuilder.append('?');
+                            first = false;
+                        } else {
+                            qrUrlBuilder.append('&');
+                        }
+                        qrUrlBuilder.append(name);
+                        qrUrlBuilder.append('=');
+                        qrUrlBuilder.append(sharingUri.getQueryParameter(name));
+                    }
+                }
+                qrUriString = qrUrlBuilder.toString();
+                break;
         }
 
         ImageView qrImage = container.findViewById(R.id.wifi_qr_code);
         if (qrUriString != null && qrImage != null) {
             Utils.debugLog(TAG, "Encoded swap URI in QR Code: " + qrUriString);
-            Bitmap qrBitmap = Utils.generateQrBitmap(this, qrUriString);
-            qrImage.setImageBitmap(qrBitmap);
 
-            // Replace all blacks with the background blue.
-            qrImage.setColorFilter(new LightingColorFilter(0xffffffff,
-                    ContextCompat.getColor(this, R.color.swap_blue)));
+            compositeDisposable.add(Utils.generateQrBitmap(this, qrUriString)
+                    .subscribe(qrBitmap -> {
+                        qrImage.setImageBitmap(qrBitmap);
 
-            final View qrWarningMessage = container.findViewById(R.id.warning_qr_scanner);
-            if (qrWarningMessage != null) {
-                if (CameraCharacteristicsChecker.getInstance(this).hasAutofocus()) {
-                    qrWarningMessage.setVisibility(View.GONE);
-                } else {
-                    qrWarningMessage.setVisibility(View.VISIBLE);
-                }
-            }
+                        // Replace all blacks with the background blue.
+                        qrImage.setColorFilter(new LightingColorFilter(0xffffffff,
+                                ContextCompat.getColor(this, R.color.swap_blue)));
+
+                        final View qrWarningMessage = container.findViewById(R.id.warning_qr_scanner);
+                        if (qrWarningMessage != null) {
+                            if (CameraCharacteristicsChecker.getInstance(this).hasAutofocus()) {
+                                qrWarningMessage.setVisibility(View.GONE);
+                            } else {
+                                qrWarningMessage.setVisibility(View.VISIBLE);
+                            }
+                        }
+                    })
+            );
         }
     }
 
@@ -1090,7 +1119,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         bonjourStatusReceiver.onReceive(this, new Intent(BonjourManager.ACTION_STATUS));
 
         TextView viewWifiNetwork = findViewById(R.id.wifi_network);
-        MaterialSwitch wifiSwitch = findViewById(R.id.switch_wifi);
+        SwitchMaterial wifiSwitch = findViewById(R.id.switch_wifi);
         MaterialButton scanQrButton = findViewById(R.id.btn_scan_qr);
         MaterialButton appsButton = findViewById(R.id.btn_apps);
         if (viewWifiNetwork == null || wifiSwitch == null || scanQrButton == null || appsButton == null) {
@@ -1100,25 +1129,18 @@ public class SwapWorkflowActivity extends AppCompatActivity {
 
         wifiSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             Context context = getApplicationContext();
-            boolean granted = SDK_INT < 37 ||
-                    ContextCompat.checkSelfPermission(context, ACCESS_LOCAL_NETWORK) == PERMISSION_GRANTED;
-            if (isChecked && !granted) {
-                requestLocalAccessLauncher.launch(ACCESS_LOCAL_NETWORK);
-                Toast.makeText(this, R.string.swap_bluetooth_permissions, Toast.LENGTH_LONG).show();
-            }
-            boolean activate = isChecked && granted;
-            if (activate) {
+            if (isChecked) {
                 if (wifiApControl != null && wifiApControl.isEnabled()) {
                     setupWifiAP();
                 } else {
-                    if (SDK_INT <= 28) {
+                    if (Build.VERSION.SDK_INT <= 28) {
                         wifiManager.setWifiEnabled(true);
                     }
                 }
                 BonjourManager.start(context);
             }
-            BonjourManager.setVisible(context, activate);
-            SwapService.putWifiVisibleUserPreference(activate);
+            BonjourManager.setVisible(context, isChecked);
+            SwapService.putWifiVisibleUserPreference(isChecked);
         });
 
         scanQrButton.setOnClickListener(v -> inflateSwapView(R.layout.swap_wifi_qr));
@@ -1145,7 +1167,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
             bonjourStatus = intent.getIntExtra(BonjourManager.EXTRA_STATUS, bonjourStatus);
             TextView textWifiVisible = container.findViewById(R.id.wifi_visible);
             TextView peopleNearbyText = container.findViewById(R.id.text_people_nearby);
-            CircularProgressIndicator peopleNearbyProgress = container.findViewById(R.id.searching_people_nearby);
+            ProgressBar peopleNearbyProgress = container.findViewById(R.id.searching_people_nearby);
             if (textWifiVisible == null || peopleNearbyText == null || peopleNearbyProgress == null) {
                 return;
             }
@@ -1158,12 +1180,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
                     break;
                 case BonjourManager.STATUS_STARTED:
                     textWifiVisible.setText(R.string.swap_not_visible_wifi);
-                    if (SDK_INT < 37 ||
-                            ContextCompat.checkSelfPermission(context, ACCESS_LOCAL_NETWORK) == PERMISSION_GRANTED) {
-                        peopleNearbyText.setText(R.string.swap_scanning_for_peers);
-                    } else {
-                        peopleNearbyText.setText(R.string.swap_bluetooth_permissions);
-                    }
+                    peopleNearbyText.setText(R.string.swap_scanning_for_peers);
                     peopleNearbyText.setVisibility(View.VISIBLE);
                     peopleNearbyProgress.setVisibility(View.VISIBLE);
                     break;
@@ -1172,12 +1189,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
                     break;
                 case BonjourManager.STATUS_NOT_VISIBLE:
                     textWifiVisible.setText(R.string.swap_not_visible_wifi);
-                    if (SDK_INT < 37 ||
-                            ContextCompat.checkSelfPermission(context, ACCESS_LOCAL_NETWORK) == PERMISSION_GRANTED) {
-                        peopleNearbyText.setText(R.string.swap_scanning_for_peers);
-                    } else {
-                        peopleNearbyText.setText(R.string.swap_bluetooth_permissions);
-                    }
+                    peopleNearbyText.setText(R.string.swap_scanning_for_peers);
                     peopleNearbyText.setVisibility(View.VISIBLE);
                     peopleNearbyProgress.setVisibility(View.VISIBLE);
                     break;
@@ -1187,12 +1199,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
                     } else {
                         textWifiVisible.setText(R.string.swap_visible_wifi);
                     }
-                    if (SDK_INT < 37 ||
-                            ContextCompat.checkSelfPermission(context, ACCESS_LOCAL_NETWORK) == PERMISSION_GRANTED) {
-                        peopleNearbyText.setText(R.string.swap_scanning_for_peers);
-                    } else {
-                        peopleNearbyText.setText(R.string.swap_bluetooth_permissions);
-                    }
+                    peopleNearbyText.setText(R.string.swap_scanning_for_peers);
                     peopleNearbyText.setVisibility(View.VISIBLE);
                     peopleNearbyProgress.setVisibility(View.VISIBLE);
                     break;
@@ -1270,11 +1277,11 @@ public class SwapWorkflowActivity extends AppCompatActivity {
                 return;
             }
             bluetoothStatus = intent.getIntExtra(BluetoothManager.EXTRA_STATUS, bluetoothStatus);
-            MaterialSwitch bluetoothSwitch = container.findViewById(R.id.switch_bluetooth);
+            SwitchMaterial bluetoothSwitch = container.findViewById(R.id.switch_bluetooth);
             TextView textBluetoothVisible = container.findViewById(R.id.bluetooth_visible);
             TextView textDeviceIdBluetooth = container.findViewById(R.id.device_id_bluetooth);
             TextView peopleNearbyText = container.findViewById(R.id.text_people_nearby);
-            CircularProgressIndicator peopleNearbyProgress = container.findViewById(R.id.searching_people_nearby);
+            ProgressBar peopleNearbyProgress = container.findViewById(R.id.searching_people_nearby);
             if (bluetoothSwitch == null || textBluetoothVisible == null || textDeviceIdBluetooth == null
                     || peopleNearbyText == null || peopleNearbyProgress == null) {
                 return;
@@ -1408,6 +1415,14 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         }
     }
 
+    private void setUpNfcView() {
+        CheckBox dontShowAgain = container.findViewById(R.id.checkbox_dont_show);
+        if (dontShowAgain != null) {
+            dontShowAgain.setOnCheckedChangeListener((buttonView, isChecked)
+                    -> Preferences.get().setShowNfcDuringSwap(!isChecked));
+        }
+    }
+
     private void setUpConnectingProgressText(String message) {
         TextView progressText = container.findViewById(R.id.progress_text);
         if (progressText != null && message != null) {
@@ -1427,7 +1442,7 @@ public class SwapWorkflowActivity extends AppCompatActivity {
         public void onReceive(Context context, Intent intent) {
             setUpConnectingProgressText(intent.getStringExtra(Intent.EXTRA_TEXT));
 
-            CircularProgressIndicator progressBar = container.findViewById(R.id.progress_bar);
+            ProgressBar progressBar = container.findViewById(R.id.progress_bar);
             Button tryAgainButton = container.findViewById(R.id.try_again);
             if (progressBar == null || tryAgainButton == null) {
                 return;
@@ -1435,16 +1450,16 @@ public class SwapWorkflowActivity extends AppCompatActivity {
 
             switch (intent.getIntExtra(LocalRepoService.EXTRA_STATUS, -1)) {
                 case LocalRepoService.STATUS_PROGRESS:
-                    progressBar.show();
+                    progressBar.setVisibility(View.VISIBLE);
                     tryAgainButton.setVisibility(View.GONE);
                     break;
                 case LocalRepoService.STATUS_STARTED:
-                    progressBar.show();
+                    progressBar.setVisibility(View.VISIBLE);
                     tryAgainButton.setVisibility(View.GONE);
                     onLocalRepoPrepared();
                     break;
                 case LocalRepoService.STATUS_ERROR:
-                    progressBar.hide();
+                    progressBar.setVisibility(View.GONE);
                     tryAgainButton.setVisibility(View.VISIBLE);
                     break;
                 default:
@@ -1454,10 +1469,10 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     };
 
     private void onRepoUpdateSuccess() {
-        CircularProgressIndicator progressBar = container.findViewById(R.id.progress_bar);
+        ProgressBar progressBar = container.findViewById(R.id.progress_bar);
         Button tryAgainButton = container.findViewById(R.id.try_again);
         if (progressBar != null && tryAgainButton != null) {
-            progressBar.show();
+            progressBar.setVisibility(View.VISIBLE);
             tryAgainButton.setVisibility(View.GONE);
         }
         getSwapService().addCurrentPeerToActive();
@@ -1465,10 +1480,10 @@ public class SwapWorkflowActivity extends AppCompatActivity {
     }
 
     private void onRepoUpdateError(Exception e) {
-        CircularProgressIndicator progressBar = container.findViewById(R.id.progress_bar);
+        ProgressBar progressBar = container.findViewById(R.id.progress_bar);
         Button tryAgainButton = container.findViewById(R.id.try_again);
         if (progressBar != null && tryAgainButton != null) {
-            progressBar.hide();
+            progressBar.setVisibility(View.GONE);
             tryAgainButton.setVisibility(View.VISIBLE);
         }
         String msg = e.getMessage() == null ? "Error updating repo " + e : e.getMessage();

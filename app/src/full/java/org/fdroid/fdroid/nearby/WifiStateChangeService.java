@@ -26,11 +26,11 @@ import androidx.work.WorkerParameters;
 
 import org.apache.commons.net.util.SubnetUtils;
 import org.fdroid.database.Repository;
-import org.fdroid.BuildConfig;
+import org.fdroid.fdroid.BuildConfig;
 import org.fdroid.fdroid.FDroidApp;
 import org.fdroid.fdroid.Hasher;
 import org.fdroid.fdroid.Preferences;
-import org.fdroid.R;
+import org.fdroid.fdroid.R;
 import org.fdroid.fdroid.Utils;
 
 import java.net.Inet6Address;
@@ -59,7 +59,8 @@ import cc.mvdan.accesspoint.WifiApControl;
  * <p>
  * This also schedules an update to encourage updates happening on
  * unmetered networks like typical WiFi rather than networks that can
- * cost money or have caps.
+ * cost money or have caps.  The logic for checking the state of the
+ * internet connection is in {@link org.fdroid.fdroid.UpdateService#onHandleWork(Intent)}
  * <p>
  * Some devices send multiple copies of given events, like a Moto G often
  * sends three {@code CONNECTED} events.  So they have to be debounced to
@@ -82,16 +83,12 @@ public class WifiStateChangeService extends Worker {
         super(context, workerParams);
     }
 
-    public static void registerReceiver(Context context, WifiStateChangeReceiver wifiStateChangeReceiver) {
+    public static void registerReceiver(Context context) {
         ContextCompat.registerReceiver(
                 context,
-                wifiStateChangeReceiver,
+                new WifiStateChangeReceiver(),
                 new IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION),
                 ContextCompat.RECEIVER_NOT_EXPORTED);
-    }
-
-    public static void unregisterReceiver(Context context, WifiStateChangeReceiver wifiStateChangeReceiver) {
-        context.unregisterReceiver(wifiStateChangeReceiver);
     }
 
     public static void start(Context context, @Nullable Intent intent) {
