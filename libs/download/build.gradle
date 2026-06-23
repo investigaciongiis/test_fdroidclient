@@ -56,10 +56,10 @@ kotlin {
             kotlin.srcDir("src/commonMain/kotlin")
             dependencies {
                 implementation "io.ktor:ktor-client-okhttp:2.3.0"
-                implementation("com.github.bumptech.glide:glide:4.14.2") {
+                implementation("com.github.bumptech.glide:glide:5.0.7") {
                     transitive = false // we don't need all that it pulls in, just the basics
                 }
-                implementation "com.github.bumptech.glide:annotations:4.14.2"
+                implementation "com.github.bumptech.glide:annotations:5.0.7"
             }
         }
         androidUnitTest {
